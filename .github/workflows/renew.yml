@@ -3,7 +3,7 @@ name: DigitalPlat Domain Renew
 on:
   schedule:
     # 每 3 天运行一次 (UTC时间 20:00，对应北京时间凌晨 4:00)
-    - cron: '0 20 */3 * *'
+    - cron: '0 20 */30 * *'
   workflow_dispatch:
 
 jobs:
