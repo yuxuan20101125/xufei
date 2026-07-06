@@ -117,7 +117,8 @@ async def setup_browser(playwright):
             '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-gpu',
-            '--disable-dev-shm-usage'
+            '--disable-dev-shm-usage',
+            '--headless=new'
         ]
     )
     context = await browser.new_context(
@@ -125,6 +126,7 @@ async def setup_browser(playwright):
         viewport={"width": 1920, "height": 1080},
         extra_http_headers={"Accept-Language": "en-US,en;q=0.9"}
     )
+    # 完整反爬初始化脚本
     anti_detect_script = """
     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
     delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
