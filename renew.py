@@ -111,6 +111,7 @@ async def take_error_screenshot(page, label: str):
     return path
 
 async def setup_browser(playwright):
+    # 使用Chromium，CI环境更稳定，修复Page closed闪退
     browser = await playwright.chromium.launch(
         headless=True,
         args=[
@@ -122,15 +123,30 @@ async def setup_browser(playwright):
             '--disable-software-rasterizer',
             '--single-process',
             '--disable-plugins',
-            '--disable-extensions'
+            '--disable-extensions',
+            '--window-size=1920,1080',
+            '--mute-audio',
+            '--exclude-switches=enable-automation',
+            '--disable-features=IsolateOrigins,site-per-process'
         ]
     )
     context = await browser.new_context(
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         viewport={"width": 1920, "height": 1080},
-        extra_http_headers={"Accept-Language": "en-US,en;q=0.9"}
+        extra_http_headers={
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1"
+        }
     )
-    # 反爬脚本
+    # 完整反爬脚本，规避CF检测
     anti_detect_script = """
     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
     delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
@@ -138,30 +154,46 @@ async def setup_browser(playwright):
     delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
     Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
     Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+    window.chrome = { runtime: {} };
     """
     await context.add_init_script(anti_detect_script)
     return browser, context
+
 async def login(page):
     logger.info("=== 启动登录流程 ===")
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUTS["page_load"])
     await simulate_human_behavior(page)
 
-    try:
-        await page.wait_for_selector("input[name='email']", timeout=TIMEOUTS["login_wait"])
-    except PlaywrightTimeoutError:
+    # 循环等待CF自动放行，不直接超时
+    wait_total = 0
+    wait_step = 5000
+    max_wait = TIMEOUTS["login_wait"]
+    email_input = None
+    while wait_total < max_wait:
+        try:
+            email_input = page.locator("input[name='email']")
+            await email_input.wait_for(timeout=wait_step)
+            break
+        except PlaywrightTimeoutError:
+            wait_total += wait_step
+            logger.info(f"检测到Cloudflare验证，持续等待...已等待{wait_total / 1000}秒")
+            await page.wait_for_timeout(wait_step)
+            continue
+    else:
         await take_error_screenshot(page, "login_cf_timeout")
-        err_msg = "登录超时：长时间未通过Cloudflare人机验证"
+        err_msg = f"登录超时：{max_wait / 1000}秒未自动通过Cloudflare人机验证"
         logger.error(err_msg)
         send_notification("DigitalPlat 登录失败", err_msg)
         raise Exception(err_msg)
 
-    email_input = page.locator("input[name='email']")
-    pass_input = page.locator("input[name='password']")
+    # 模拟人工输入账号密码
     await email_input.type(DP_EMAIL, delay=random.randint(40, 160))
     await random_sleep()
+    pass_input = page.locator("input[name='password']")
     await pass_input.type(DP_PASSWORD, delay=random.randint(40, 160))
     await random_sleep(0.5, 1.2)
 
+    # 提交登录表单
     submit_btn = page.locator("button[type='submit']")
     async with page.expect_navigation(wait_until="networkidle", timeout=TIMEOUTS["navigation"]):
         await submit_btn.click()
@@ -169,7 +201,7 @@ async def login(page):
     await random_sleep(1, 2)
     if "/panel/main" not in page.url:
         await take_error_screenshot(page, "login_failed_redirect")
-        err_msg = "登录提交后未跳转仪表盘，账号/密码错误或验证拦截"
+        err_msg = "登录提交后未跳转仪表盘，账号密码错误或被验证拦截"
         logger.error(err_msg)
         send_notification("DigitalPlat 登录失败", err_msg)
         raise Exception(err_msg)
@@ -274,7 +306,7 @@ async def main():
 
     async with async_playwright() as p:
         try:
-            # 重试2次启动浏览器
+            # 浏览器启动重试2次，规避偶发闪退
             retry_count = 0
             while retry_count < 2:
                 try:
@@ -286,7 +318,7 @@ async def main():
                     await asyncio.sleep(3)
             else:
                 raise Exception("浏览器连续2次启动失败，终止运行")
-                
+
             page = await context.new_page()
             base_domain_url = "https://dash.domain.digitalplat.org/"
 
@@ -324,5 +356,6 @@ async def main():
             if browser is not None:
                 logger.info("关闭浏览器进程")
                 await browser.close()
+
 if __name__ == "__main__":
     asyncio.run(main())
