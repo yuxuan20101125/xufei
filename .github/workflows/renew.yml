@@ -34,8 +34,13 @@ jobs:
         run: |
           echo "$VLESS_JSON" > config.json
           sing-box run -c config.json > sb.log 2>&1 &
+          SB_PID=$!
           sleep 12
-          echo "代理启动完成：socks5://127.0.0.1:1080"
+          echo "==== sing-box 完整运行日志 ===="
+          cat sb.log
+          echo "==== 本机端口监听情况 ===="
+          ss -tulpn || netstat -tulpn
+          echo "sing-box 进程PID: $SB_PID"
 
       - name: Install Python dependencies
         run: |
