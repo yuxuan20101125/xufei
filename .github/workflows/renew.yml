@@ -19,15 +19,15 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install Python 依赖
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        playwright install firefox
+        python -m playwright install firefox
 
-    # 关键新增：安装浏览器系统依赖
+    # 修复：用 python -m 调用 playwright，sudo 可识别
     - name: Install Playwright system dependencies
-      run: sudo playwright install-deps
+      run: sudo python -m playwright install-deps
 
     - name: Run renewal script
       env:
