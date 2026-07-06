@@ -2,48 +2,45 @@ name: DigitalPlat Domain Renew
 
 on:
   schedule:
-    # 每3天 UTC20点 = 北京时间次日凌晨4点
     - cron: '0 20 */3 * *'
   workflow_dispatch:
 
 jobs:
   renew:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        python -m playwright install firefox
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install firefox
 
-    # 适配Ubuntu24.04的浏览器底层依赖，修正包名
-    - name: Install Playwright browser system libs
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libdbus-glib-1-2 libgtk-3-0 libgbm-dev libasound2t64 libx11-xcb1 libnss3 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 libxtst6 libcups2 libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libharfbuzz0b libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libglib2.0-0 libdrm2
+      - name: Install Playwright browser system libs
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y libdbus-glib-1-2 libgbm-dev libgdk-pixbuf-xlib-2.0-0 libgdk-pixbuf2.0-0 libgdk-pixbuf2.0-bin libnss3 libnss3-tools libasound2t64 libx11-xcb1 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 libxtst6 libcups2 libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libharfbuzz0b libpango-1.0-0 libcairo2 libglib2.0-0 libdrm2 || true
 
-    - name: Run renewal script
-      env:
-        DP_EMAIL: ${{ secrets.DP_EMAIL }}
-        DP_PASSWORD: ${{ secrets.DP_PASSWORD }}
-        BARK_KEY: ${{ secrets.BARK_KEY }}
-        BARK_SERVER: ${{ secrets.BARK_SERVER }}
-        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-      run: python renew.py
-      
-    - name: Upload screenshots on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: error-screenshots
-        path: screenshot_log/
+      - name: Run renewal script
+        env:
+          DP_EMAIL: ${{ secrets.DP_EMAIL }}
+          DP_PASSWORD: ${{ secrets.DP_PASSWORD }}
+          BARK_KEY: ${{ secrets.BARK_KEY }}
+          BARK_SERVER: ${{ secrets.BARK_SERVER }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python renew.py
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshots
+          path: screenshot_log/
