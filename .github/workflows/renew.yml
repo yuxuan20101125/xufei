@@ -22,9 +22,8 @@ jobs:
           sudo apt-get update || true
           sudo apt-get install -y libdbus-glib-1-2 libgbm-dev libgdk-pixbuf-xlib-2.0-0 libgdk-pixbuf2.0-0 libgdk-pixbuf2.0-bin libnss3 libnss3-tools libasound2t64 libx11-xcb1 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 libxtst6 libcups2 libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libharfbuzz0b libpango-1.0-0 libcairo2 libglib2.0-0 libdrm2 || true
 
-          # 手动下载安装sing-box，修复原一键脚本失效问题
           SB_VERSION=1.9.7
-          wget https://mirror.ghproxy.com/https://github.com/SagerNet/sing-box/releases/download/v${SB_VERSION}/sing-box-${SB_VERSION}-linux-amd64.tar.gz
+          wget https://github.com/SagerNet/sing-box/releases/download/v${SB_VERSION}/sing-box-${SB_VERSION}-linux-amd64.tar.gz
           tar -zxvf sing-box-${SB_VERSION}-linux-amd64.tar.gz
           sudo cp sing-box-${SB_VERSION}-linux-amd64/sing-box /usr/local/bin/
           sing-box version
