@@ -151,7 +151,7 @@ async def setup_browser(playwright):
     # 存在VLESS代理则启用socks5
     if SOCKS5_PROXY:
         context_args["proxy"] = {"server": SOCKS5_PROXY}
-        logger.info(f"浏览器已启用VLESS转换代理: {SOCKS5_PROXY}
+        logger.info(f"浏览器已启用VLESS转换代理: {SOCKS5_PROXY}")
 
     context = await browser.new_context(**context_args)
     # 反爬脚本规避CF检测
