@@ -25,11 +25,11 @@ jobs:
         pip install -r requirements.txt
         python -m playwright install firefox
 
-    # 方案：先获取当前Python路径，带完整路径sudo执行，避免环境丢失
-    - name: Install browser system libs manually
+    # 适配Ubuntu24.04的浏览器底层依赖，修正包名
+    - name: Install Playwright browser system libs
       run: |
-       sudo apt-get update
-       sudo apt-get install -y libdbus-glib-1-2 libgtk-3-0 libgbm-dev libasound2 libx11-xcb1 libnss3 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 libxtst6 libcups2 libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libharfbuzz0b libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libglib2.0-0 libdrm2
+        sudo apt-get update
+        sudo apt-get install -y libdbus-glib-1-2 libgtk-3-0 libgbm-dev libasound2t64 libx11-xcb1 libnss3 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 libxtst6 libcups2 libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libharfbuzz0b libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libglib2.0-0 libdrm2
 
     - name: Run renewal script
       env:
