@@ -111,22 +111,26 @@ async def take_error_screenshot(page, label: str):
     return path
 
 async def setup_browser(playwright):
-    browser = await playwright.firefox.launch(
+    browser = await playwright.chromium.launch(
         headless=True,
         args=[
             '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-gpu',
             '--disable-dev-shm-usage',
-            '--headless=new'
+            '--headless=new',
+            '--disable-software-rasterizer',
+            '--single-process',
+            '--disable-plugins',
+            '--disable-extensions'
         ]
     )
     context = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:115.0) Gecko/20100101 Firefox/115.0",
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         viewport={"width": 1920, "height": 1080},
         extra_http_headers={"Accept-Language": "en-US,en;q=0.9"}
     )
-    # 完整反爬初始化脚本
+    # 反爬脚本
     anti_detect_script = """
     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
     delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
@@ -137,7 +141,6 @@ async def setup_browser(playwright):
     """
     await context.add_init_script(anti_detect_script)
     return browser, context
-
 async def login(page):
     logger.info("=== 启动登录流程 ===")
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUTS["page_load"])
