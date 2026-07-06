@@ -274,7 +274,19 @@ async def main():
 
     async with async_playwright() as p:
         try:
-            browser, context = await setup_browser(p)
+            # 重试2次启动浏览器
+            retry_count = 0
+            while retry_count < 2:
+                try:
+                    browser, context = await setup_browser(p)
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    logger.warning(f"浏览器启动失败，第{retry_count}次重试: {e}")
+                    await asyncio.sleep(3)
+            else:
+                raise Exception("浏览器连续2次启动失败，终止运行")
+                
             page = await context.new_page()
             base_domain_url = "https://dash.domain.digitalplat.org/"
 
@@ -312,6 +324,5 @@ async def main():
             if browser is not None:
                 logger.info("关闭浏览器进程")
                 await browser.close()
-
 if __name__ == "__main__":
     asyncio.run(main())
