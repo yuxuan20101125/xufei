@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # --- 环境变量配置 ---
 DP_EMAIL = os.getenv("DP_EMAIL", "").strip()
 DP_PASSWORD = os.getenv("DP_PASSWORD", "").strip()
+SOCKS5_PROXY = os.getenv("SOCKS5_PROXY", "").strip()
 
 # 通知配置 (Bark & Telegram)
 BARK_KEY = os.getenv("BARK_KEY", "").strip()
@@ -49,7 +50,7 @@ def validate_config():
 def send_notification(title, body, level="active"):
     """同步通知，仅使用requests，无httpx依赖"""
     logger.info(f"发送通知 | {title}")
-    # Bark
+    # Bark推送
     if BARK_KEY:
         try:
             bark_payload = {
@@ -61,7 +62,7 @@ def send_notification(title, body, level="active"):
             requests.post(f"{BARK_SERVER}/{BARK_KEY}", json=bark_payload, timeout=TIMEOUTS["notify_req"])
         except Exception as e:
             logger.error(f"Bark通知失败: {str(e)}")
-    # Telegram
+    # Telegram推送
     if TG_BOT_TOKEN and TG_CHAT_ID:
         try:
             tg_text = f"*{title}*\n\n{body}"
@@ -93,7 +94,7 @@ def save_results(renewed_domains, failed_domains):
     except Exception as e:
         logger.error(f"保存结果文件失败: {e}")
 
-async def random_sleep(min_s=0.3, max_s=2.2):
+async def random_sleep(min_s=1, max_s=4):
     await asyncio.sleep(random.uniform(min_s, max_s))
 
 async def simulate_human_behavior(page):
@@ -111,7 +112,7 @@ async def take_error_screenshot(page, label: str):
     return path
 
 async def setup_browser(playwright):
-    # 使用Chromium，CI环境更稳定，修复Page closed闪退
+    # Chromium启动参数
     browser = await playwright.chromium.launch(
         headless=True,
         args=[
@@ -130,10 +131,11 @@ async def setup_browser(playwright):
             '--disable-features=IsolateOrigins,site-per-process'
         ]
     )
-    context = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        viewport={"width": 1920, "height": 1080},
-        extra_http_headers={
+    # 代理配置：读取VLESS转出来的本地socks5
+    context_args = {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "viewport": {"width": 1920, "height": 1080},
+        "extra_http_headers": {
             "Accept-Language": "en-US,en;q=0.9",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
@@ -145,8 +147,14 @@ async def setup_browser(playwright):
             "sec-fetch-user": "?1",
             "upgrade-insecure-requests": "1"
         }
-    )
-    # 完整反爬脚本，规避CF检测
+    }
+    # 存在VLESS代理则启用socks5
+    if SOCKS5_PROXY:
+        context_args["proxy"] = {"server": SOCKS5_PROXY}
+        logger.info(f"浏览器已启用VLESS转换代理: {SOCKS5_PROXY}
+
+    context = await browser.new_context(**context_args)
+    # 反爬脚本规避CF检测
     anti_detect_script = """
     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
     delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
@@ -164,7 +172,7 @@ async def login(page):
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUTS["page_load"])
     await simulate_human_behavior(page)
 
-    # 循环等待CF自动放行，不直接超时
+    # 循环等待CF验证自动放行
     wait_total = 0
     wait_step = 5000
     max_wait = TIMEOUTS["login_wait"]
